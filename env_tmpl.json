@@ -1,0 +1,16 @@
+{
+	"wallpaper/": {
+		"dir": "./pics/",
+		"maxAge": 31536000,
+		"private": {
+			"secret": "123456",
+			"pathes": [
+				"hd/"
+			]
+		}
+	},
+	"mistakebook/": {
+		"dir": "./pics/",
+		"maxAge": 31536000
+	}
+}
