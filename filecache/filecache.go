@@ -45,8 +45,8 @@ func New() *FileCache {
 
 // Get retrieves a file from the cache, loading it from disk if necessary
 func (fc *FileCache) Get(filePath string) ([]byte, error) {
-	fc.mu.RLock()
-	defer fc.mu.RUnlock()
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 	data, found := fc.cache[filePath]
 	if found {
 		return data, nil
