@@ -1,11 +1,13 @@
 package filecache
 
 import (
-	"fmt"
 	"io/ioutil"
-	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+
+	"storage/log"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -21,7 +23,7 @@ type FileCache struct {
 func New() *FileCache {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		log.Logger().Error().Err(err).Msgf("create watcher failed")
 		return nil
 	}
 	fc := &FileCache{
@@ -29,15 +31,12 @@ func New() *FileCache {
 		watcher: watcher,
 	}
 	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				filePath := strings.TrimPrefix(event.Name, "./")
-				fc.mu.Lock()
-				fc.cache[filePath] = nil
-				fmt.Printf("event:%s, filePath:%s clear it\n", event.Name, filePath)
-				fc.mu.Unlock()
-			}
+		for event := range watcher.Events {
+			filePath := strings.TrimPrefix(event.Name, "./")
+			fc.mu.Lock()
+			fc.cache[filePath] = nil
+			log.Logger().Debug().Msgf("event:%s, filePath:%s clear it", event.Name, filePath)
+			fc.mu.Unlock()
 		}
 	}()
 	return fc
@@ -54,11 +53,29 @@ func (fc *FileCache) Get(filePath string) ([]byte, error) {
 	// Load file from disk
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("filePath:%s not found\n", filePath)
+		log.Logger().Error().Err(err).Msgf("filePath:%s not found", filePath)
 		return nil, err
 	}
 	filePath = strings.TrimPrefix(filePath, "./")
 	fc.cache[filePath] = data
 	fc.watcher.Add(filePath)
 	return data, nil
+}
+
+func (fc *FileCache) Put(filePath string, data []byte) error {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	fc.cache[filePath] = data
+	fc.watcher.Add(filePath)
+	dir := filepath.Dir(filePath)
+	os.MkdirAll(dir, 0o755)
+	return os.WriteFile(filePath, data, 0o644)
+}
+
+func (fc *FileCache) Delete(filePath string) error {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	delete(fc.cache, filePath)
+	fc.watcher.Remove(filePath)
+	return os.Remove(filePath)
 }

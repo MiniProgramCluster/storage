@@ -1,5 +1,6 @@
 bin/*
 logs/*
-.env.json
+env.json
 pics/*
 storage
+storage.exe

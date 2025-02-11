@@ -1,16 +1,19 @@
 {
-	"wallpaper/": {
-		"dir": "./pics/",
-		"maxAge": 31536000,
-		"private": {
+	"folders": {
+		"wallpaper/": {
+			"dir": "./pics/",
+			"maxAge": 31536000,
+			"private": {
 			"secret": "123456",
 			"pathes": [
 				"hd/"
-			]
+				]
+			}
+		},
+		"mistakebook/": {
+			"dir": "./pics/",
+			"maxAge": 31536000
 		}
 	},
-	"mistakebook/": {
-		"dir": "./pics/",
-		"maxAge": 31536000
-	}
+	"authKey": "123456"
 }

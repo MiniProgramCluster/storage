@@ -6,6 +6,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+
+	"storage/log"
 )
 
 var PREFIX = "/storage/"
@@ -21,7 +23,12 @@ type StorageConf struct {
 	Private privateConf `json:"private"`
 }
 
-var storageConfs map[string]*StorageConf
+type Conf struct {
+	Folders map[string]*StorageConf `json:"folders"`
+	AuthKey string                  `json:"authKey"`
+}
+
+var conf Conf
 
 func (c *StorageConf) String() string {
 	return fmt.Sprintf("dir:%s, maxAge:%d, private:%+v", c.Dir, c.MaxAge, c.Private)
@@ -45,11 +52,12 @@ func (c *StorageConf) FilePath(fileName string) string {
 }
 
 func parseConfig() {
-	storageConfs = make(map[string]*StorageConf)
-	if err := viper.Unmarshal(&storageConfs); err != nil {
-		fmt.Println("Failed to unmarshal app config")
+	var tmp Conf
+	if err := viper.Unmarshal(&tmp); err != nil {
+		log.Logger().Error().Err(err).Msg("Failed to unmarshal app config")
 	}
-	fmt.Printf("storageConfs:%+v\n", storageConfs)
+	conf = tmp
+	log.Logger().Debug().Msgf("conf:%+v", conf)
 }
 
 func Init(file string) {
@@ -58,34 +66,38 @@ func Init(file string) {
 	viper.SetConfigType("json") // 配置文件类型
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Printf("config file changed:%s\n", e.Name)
+		log.Logger().Info().Msgf("config file changed: %s", e.Name)
 		parseConfig()
 	})
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Failed to unmarshal app config")
+		log.Logger().Error().Err(err).Msg("Failed to read config file")
 	}
 	parseConfig()
 }
 
 func FileInfo(url string) (*StorageConf, string) {
 	if !strings.HasPrefix(url, PREFIX) {
-		fmt.Printf("url:%s is not valid\n", url)
+		log.Logger().Error().Msgf("invalid url: %s", url)
 		return nil, ""
 	}
 	url = url[len(PREFIX):]
 	n := strings.Index(url, "/")
 	if n == -1 {
-		fmt.Printf("url:%s is not valid\n", url)
+		log.Logger().Error().Msgf("invalid url format: %s", url)
 		return nil, ""
 	}
 	dir := url[:n+1]
-	conf := storageConfs[dir]
-	if conf == nil {
-		fmt.Printf("url:%s is not valid dir:%s\n", url, dir)
+	folder := conf.Folders[dir]
+	if folder == nil {
+		log.Logger().Error().Msgf("invalid directory in url: %s (dir: %s)", url, dir)
 		return nil, ""
 	}
 	fileName := url[n+1:]
-	fmt.Printf("filePath:%s, maxAge:%d %s\n", conf.Dir, conf.MaxAge, fileName)
-	return conf, fileName
+	log.Logger().Debug().Msgf("file request - path:%s maxAge:%d filename:%s", folder.Dir, folder.MaxAge, fileName)
+	return folder, fileName
+}
+
+func GetAuthKey() string {
+	return conf.AuthKey
 }
